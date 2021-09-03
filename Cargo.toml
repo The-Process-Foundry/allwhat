@@ -1,0 +1,28 @@
+[package]
+name = "allwhat"
+version = "0.1.0" # remember to update html_root_url
+authors = ["Dave Fogelson <theprocessfoundry.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "Extended Result functionality"
+repository = "https://github.com/the_process_foundry/allwhat"
+documentation = "https://github.com/the_process_foundry/allwhat"
+readme = "README.md"
+categories = ["rust-patterns"]
+
+[features]
+default = ["groups", "annotation", "iteration"]
+annotation = ["groups"]
+groups = []
+iteration = []
+
+[dependencies]
+anyhow = "1.0.43"
+
+[dev-dependencies]
+thiserror = "1.0"
+trybuild = { version = "1.0.19", features = ["diff"] }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "doc_cfg"]
