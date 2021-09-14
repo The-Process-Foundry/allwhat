@@ -3,12 +3,12 @@
 //! These should allow for reducing boilerplate some known patterns.
 //!
 
-use core::fmt::Display;
+use core::fmt::{Debug, Display};
 
 // Add some monad features to the result
 pub trait Monadic<T, E>
 where
-  E: Display + Send + Sync + 'static,
+  E: Debug + Display + Send + Sync + 'static,
 {
   /// Kleisli Composition
   ///
@@ -17,24 +17,40 @@ where
   ///
   /// Does Signature
   /// Result<T, E> => Result<U, E>
-  fn kc<U, F>(self, func: F) -> Result<U, E>
+  fn if_ok<U, F>(self, func: F) -> Result<U, E>
   where
-    E: Display + Send + Sync + 'static,
+    E: Debug + Display + Send + Sync + 'static,
     F: FnOnce(T) -> Result<U, E>;
+
+  fn if_err<F>(self, func: F) -> Result<T, E>
+  where
+    E: Debug + Display + Send + Sync + 'static,
+    F: FnOnce(E) -> Result<T, E>;
 }
 
 impl<T, E> Monadic<T, E> for Result<T, E>
 where
-  E: Display + Send + Sync + 'static,
+  E: Debug + Display + Send + Sync + 'static,
 {
   // Kleisli
-  fn kc<U, F>(self, func: F) -> Result<U, E>
+  fn if_ok<U, F>(self, func: F) -> Result<U, E>
   where
     F: FnOnce(T) -> Result<U, E>,
   {
     match self {
       Ok(value) => func(value),
       Err(err) => Err(err),
+    }
+  }
+
+  // Kleisli
+  fn if_err<F>(self, func: F) -> Result<T, E>
+  where
+    F: FnOnce(E) -> Result<T, E>,
+  {
+    match self {
+      Ok(value) => Ok(value),
+      Err(err) => func(err),
     }
   }
 }
@@ -59,7 +75,7 @@ where
 #[macro_export]
 macro_rules! kc {
   ($start:expr => $($term:expr)=>+) => {
-    $start $( .kc($term) )+
+    $start $( .if_ok($term) )+
   };
 }
 

@@ -5,7 +5,7 @@
 pub use anyhow::{anyhow, Result};
 
 pub mod all {
-  pub use crate::{err, extract_errors, into_struct};
+  pub use crate::{err, extract_errors, map_struct};
 }
 
 /// Returns a SubparError with context".to_string()
@@ -47,8 +47,11 @@ macro_rules! split_result {
   () => {};
 }
 
-/// A result to struct assignment grouping errors together
+/// Assign fields of a struct using closures or existing results, aggregating errors
+///
+/// This is pretty standard in a proc_macro derive, but checking each value and then adding it gets
+/// tedious fast in large structs.
 #[macro_export]
-macro_rules! into_struct {
-  ($struct:ident {($($field:ident $(=> $source:expr )?),+) }) => {};
+macro_rules! map_struct {
+  ($struct:ident {($($field:ident $(=> $source:expr )?),+) }) => {{}};
 }

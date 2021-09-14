@@ -1,0 +1,194 @@
+//! Accumulate the results of running groups of functions against a single object
+//!
+//! There two primary use cases that I can think of.
+//!
+//! 1) Bulk processing - This is items like inserting to a database or parsing tabular data. I don't
+//!    want to throw away completed work if there is one error. Even though there is one database,
+//!    it doesn't hurt it internally when one query in hundreds fails.
+//! 2) Validation - In this case, I want to gather as many errors as I can and report at once. It is
+//!    quite time consuming to fail fast and have to rerun to find the next issue.
+//!
+
+use crate::local::*;
+
+/// Tells the caller whether the restore after an error
+/// Gather the results from applying multiple
+#[derive(Debug)]
+pub struct BatchResult<T> {
+  count: u32,
+  value: T,
+  errors: Option<ErrorGroup>,
+}
+
+// impl<T> TryMut for BatchResult<T>
+// where
+//   T: TryMut,
+// {
+//   type Error = AnyhowError;
+//   type Backup = ();
+
+//   // fn backup<B>(&self) -> B {
+//   //   self.value.backup()
+//   // }
+
+//   // /// Return the object to its previous state because of an error
+//   // fn restore<B>(&mut self, backup: B) -> () {
+//   //   self.value.restore(backup)
+//   // }
+
+//   ///
+//   fn try_mut<E, F>(&mut self, _func: F) -> Result<(), Self::Error>
+//   where
+//     E: Into<AnyhowError>,
+//     F: FnMut(&mut Self) -> Result<(), E>,
+//   {
+//     unimplemented!("BatchResult should only use try_mut_quiet")
+//   }
+
+//   fn try_mut_quiet<E, F>(&mut self, mut func: F)
+//   where
+//     E: Into<Self::Error>,
+//     F: FnMut(Self) -> Result<(), E>,
+//   {
+//     // This increments regardless and doesn't get rolled back
+//     self.count += 1;
+//     // let backup: B = self.backup();
+//     if let Err(err) = func(&mut self) {
+//       self.append(err);
+//       // self.restore(backup);
+//     }
+//   }
+// }
+
+impl<T> BatchResult<T> {
+  pub fn new(init: T) -> Self {
+    BatchResult {
+      count: 0,
+      value: init,
+      errors: None,
+    }
+  }
+
+  /// Convert this to a result, Ok(values) if errors is None and Err(errors) if not
+  pub fn as_result<E>(self) -> Result<T, E>
+  where
+    E: From<ErrorGroup>,
+  {
+    match self.errors {
+      Some(err) => Err(err)?,
+      None => Ok(self.value),
+    }
+  }
+
+  /// The number of errors accumulated
+  pub fn count_error(&self) -> u32 {
+    match &self.errors {
+      Some(group) => group.len() as u32,
+      None => 0,
+    }
+  }
+
+  /// The number of successful functions run against this result
+  pub fn count_valid(&self) -> u32 {
+    self.count - self.count_error()
+  }
+
+  /// The total number of functions run against this result
+  pub fn count(&self) -> u32 {
+    self.count.clone()
+  }
+
+  pub fn append<E>(&mut self, err: E)
+  where
+    E: Into<AnyhowError>,
+  {
+    match &mut self.errors {
+      Some(group) => group.append(err),
+      None => {
+        let mut group = ErrorGroup::new();
+        group.append(err);
+        self.errors = Some(group)
+      }
+    };
+  }
+
+  /// Run the value through a list of tests and add failures to the result
+  pub fn validate<E, Func>(value: T, tests: impl Iterator<Item = Func>) -> BatchResult<T>
+  where
+    Func: FnOnce(&T) -> Result<(), E>,
+    E: Into<AnyhowError>,
+  {
+    let mut group = ErrorGroup::new();
+    let mut count = 0;
+    for test in tests {
+      count += 1;
+      if let Err(err) = test(&value) {
+        group.append(err.into())
+      };
+    }
+
+    BatchResult {
+      count,
+      value: value,
+      errors: match group.len() {
+        0 => None,
+        _ => Some(group),
+      },
+    }
+  }
+
+  /// Uses a function to apply each item to the accumulator, storing errors for future examination
+  ///
+  /// Please note, errors have the potential to corrupt the accumulator since it mutates
+  pub fn fold<U, E, F>(accumulator: T, list: impl Iterator<Item = U>, mut func: F) -> BatchResult<T>
+  where
+    F: FnMut(&T, &U) -> Result<(), E>,
+    E: Into<AnyhowError> + Display + Debug + Send + Sync + 'static,
+  {
+    // let mut acc = BatchResult::new(accumulator);
+    // let err = anyhow!("Test ERror");
+    // acc.append(err);
+    // acc
+    list.fold(BatchResult::new(accumulator), |mut acc, item| {
+      acc.count += 1;
+      let res = func(&acc.value, &item);
+      if let Err(err) = res {
+        acc.append(err);
+      }
+      acc
+    })
+  }
+
+  /// Attempt to fold a set of values into the accumulator, rolling back errors
+  ///
+  /// This is heavy, and requires implementing TryMut to use this. The difference is that the
+  /// accumulator won't be left in an unknown state after an error.
+  #[cfg(feature = "try_mut")]
+  pub fn try_fold<U, F>(
+    accumulator: T,
+    list: impl Iterator<Item = U>,
+    action: Box<dyn Fn(U) -> T::Action>,
+  ) -> BatchResult<T>
+  where
+    F: Fn(&mut T, &U) -> PoisonedMut<T::Error>,
+    T: TryMut,
+  {
+    let acc = BatchResult::new(accumulator);
+    // for item in list {
+    //   acc.count += 1;
+    //   match acc.value.try_mut(|value| func(value, &item)) {
+    //     PoisonedMut::Ok => (),
+    //     PoisonedMut::Err(err) => acc.append(err),
+    //     PoisonedMut::Poisoned(err1, err2) => {
+    //       let error = anyhow!(err2).context(err1);
+    //       println!("{}", error);
+    //     }
+    //   };
+    // }
+    acc
+  }
+
+  // A set of functions where all need to succeed or the successes should also be rolled back.
+  // THINK: Maybe a macro
+  // pub fn transaction()
+}

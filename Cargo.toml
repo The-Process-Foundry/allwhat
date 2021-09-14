@@ -11,17 +11,24 @@ readme = "README.md"
 categories = ["rust-patterns"]
 
 [features]
-default = ["groups", "annotation", "iteration"]
-annotation = ["groups"]
+default = ["groups", "batch", "iteration"]
+all = ["groups", "batch", "iteration", "try_mut"]
+batch = ["groups"]
 groups = []
 iteration = []
+try_mut = []
 
 [dependencies]
-anyhow = "1.0.43"
+anyhow = { version = "1.0.43", optional = false }
+# anyhow = { path = "../anyhow", optional = false }
+
+# For building some macros
+paste = "1.0.5"
 
 [dev-dependencies]
-thiserror = "1.0"
-trybuild = { version = "1.0.19", features = ["diff"] }
+thiserror = "1.0.29"
+trybuild = { version = "1.0.45", features = ["diff"] }
+
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

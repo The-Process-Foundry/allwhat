@@ -3,34 +3,34 @@
 mod macros;
 mod monadic;
 
-#[cfg(feature = "groups")]
+// #[cfg(feature = "groups")]
 mod group;
 
-pub mod exports {
-  pub use {super::monadic::Monadic, crate::kc};
+// #[cfg(feature = "groups")]
+mod split;
 
-  #[cfg(feature = "groups")]
-  pub use super::group::ErrorGroup;
+mod batch;
+
+#[cfg(feature = "try_mut")]
+mod try_mut;
+
+/// Standard items used in components of this crate
+pub(crate) mod local {
+  pub(crate) use std::fmt::{Debug, Display, Formatter};
+
+  pub(crate) use anyhow::{anyhow, Error as AnyhowError};
+
+  pub(crate) use super::group::ErrorGroup;
+
+  pub use super::prelude::*;
 }
 
-use core::fmt::Display;
+pub mod prelude {
+  pub use {super::monadic::Monadic, crate::kc};
 
-#[cfg(test)]
-mod tools {
-  use anyhow::Result;
+  // #[cfg(feature = "groups")]
+  pub use super::{batch::BatchResult, group::ErrorGroup, split::SplitResult};
 
-  /// Test that the internals of errors are ok
-  pub fn cmp<T: Eq>(left: Result<T>, right: Result<T, &str>) -> bool {
-    match (left, right) {
-      (Ok(_), Err(_)) | (Err(_), Ok(_)) => false,
-      (Ok(l), Ok(r)) => l == r,
-      (Err(l), Err(r)) => match l.to_string().eq(&r.to_string()) {
-        true => true,
-        false => {
-          println!("No Match:\n\tEval:     '{}'\n\tExpected: '{}'", l, r);
-          false
-        }
-      },
-    }
-  }
+  #[cfg(feature = "try_mut")]
+  pub use super::try_mut::*;
 }
