@@ -88,7 +88,7 @@ fn test_try_mut() {
 
   enum TestAccTryAction {
     Insert(
-      //stash
+      //patch
       Box<dyn Fn(&self) -> i32>,
       // Action
     )
@@ -96,7 +96,7 @@ fn test_try_mut() {
 
   // Created by derive
   // Items from the context that needs
-  pub enum TestAccTryStash {
+  pub enum TestAccTryPatch {
     Insert(i32),
   }
 
@@ -110,7 +110,7 @@ fn test_try_mut() {
 
   impl TryMutAction for TestAccTryAction {
     type Item = TestAcc;
-    type Stash = TestAccTryStash;
+    type Patch = TestAccTryPatch;
     type Error = TestAcc::Error;
 
 
@@ -137,7 +137,7 @@ fn test_try_mut() {
   impl TryMut for TestAcc {
     type Error = anyhow::Error;
 
-    // fn try_mut<F>(&mut self, func: F) -> PoisonedMut<Self::Error>
+    // fn try_mut<F>(&mut self, func: F) -> PoisonErr<Self::Error>
     // where
     //   F: FnMut(&mut Self) -> Result<{}, Self::Error>,
     // {
@@ -146,9 +146,9 @@ fn test_try_mut() {
     //   }
       // match func(self) {
 
-      //   PoisonedMut::Ok => (),
-      //   PoisonedMut::Err(err) => acc.append(err),
-      //   PoisonedMut::Poisoned(err1, err2) => {
+      //   PoisonErr::Ok => (),
+      //   PoisonErr::Err(err) => acc.append(err),
+      //   PoisonErr::Poisoned(err1, err2) => {
       //     let error = anyhow!(err2).context(err1);
       //     println!("{}", error);
       //   }
@@ -157,21 +157,21 @@ fn test_try_mut() {
 
 
 // Try to insert a value
-let adder : Box<dyn Fn(&mut TestAcc, i32, i32) -> PoisonedMut<AnyhowError>> =
+let adder : Box<dyn Fn(&mut TestAcc, i32, i32) -> PoisonErr<AnyhowError>> =
   |map: &mut TestAcc, key, value|
     match map.insert(key, value) {
       Some(old) => {}
-      None => PoisonedMut::Ok(()),
+      None => PoisonErr::Ok(()),
     };
 
-  let remove: dyn Fn(TestAcc, i32) -> PoisonedMut<AnyhowError> {
+  let remove: dyn Fn(TestAcc, i32) -> PoisonErr<AnyhowError> {
   {
     unimplemented!("'' still needs to be implemented")
   }
 
   fn func() -> Result<i32, anyhow::Error> {
     let res = BatchResult::try_fold(TestAcc::new(), 1..6, |_, i| {
-      PoisonedMut::Err(anyhow!("Error #{}", i))
+      PoisonErr::Err(anyhow!("Error #{}", i))
     });
 
     println!("{:?}", res);

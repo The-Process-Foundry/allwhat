@@ -20,7 +20,7 @@ fn cmp<T: Eq>(left: Result<T>, right: Result<T, &str>) -> bool {
 
 #[test]
 fn test_error_group() -> () {
-  let mut group: ErrorGroup = ErrorGroup::new();
+  let mut group: ErrorGroup = ErrorGroup::new(None);
 
   let value1: Result<&str, TestErr> = Ok("Ok does nothing");
   assert!(cmp(group.extract(value1), Ok("Ok does nothing")));
@@ -110,9 +110,9 @@ fn test_extract_errors() -> () {
   );
 
   // And inspect the contents of the Error Group
-  let display = "ErrorGroup:\n\t0) Forced Error for val 2\n\t1) Forced 3 with a context\n\t2) Invalid: String 4\n\t3) String 5 errored with context\n".to_string();
+  let display = "Extracted Errors:\n\t0) Forced Error for val 2\n\t1) Forced 3 with a context\n\t2) Invalid: String 4\n\t3) String 5 errored with context\n".to_string();
   assert_eq!(err_res.to_string(), display);
 
-  let debug = "ErrorGroup { errors: [Forced Error for val 2, Forced 3 with a context\n\nCaused by:\n    Forced Error for val 3, Invalid: String 4, String 5 errored with context\n\nCaused by:\n    Invalid: String 5] }".to_string();
+  let debug = "ErrorGroup { label: Some(\"Extracted Errors\"), errors: [Forced Error for val 2, Forced 3 with a context\n\nCaused by:\n    Forced Error for val 3, Invalid: String 4, String 5 errored with context\n\nCaused by:\n    Invalid: String 5] }".to_string();
   assert_eq!(format!("{:?}", err_res), debug);
 }

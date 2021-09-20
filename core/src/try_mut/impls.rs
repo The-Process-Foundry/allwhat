@@ -11,8 +11,8 @@ macro_rules! try_mut_primitive {
   ([$(($type:ty, $str:ident)),+]) => {
     paste! {
     $(
-    /// Make sure it can be used as a stash by itself
-    impl TryMutStash for $type {}
+    /// Make sure it can be used as a patch by itself
+    impl TryMutPatch for $type {}
 
     #[allow(non_camel_case_types)]
     pub enum [<$str TryMut>] {
@@ -21,13 +21,13 @@ macro_rules! try_mut_primitive {
 
     impl TryMutAction for [<$str TryMut>] {
       type Item = $type;
-      type Stash = $type;
+      type Patch = $type;
       type Error = AnyhowError;
 
-      /// Stash items needed to restore upon failure
+      /// Patch items needed to restore upon failure
       ///
       /// Primitives simply copy themselves, as anything more is too complex
-      fn stash(&self, item: &Self::Item) -> Self::Stash {
+      fn patch(&self, item: &Self::Item) -> Self::Patch {
         match self {
           _ => item.clone(),
         }
@@ -37,7 +37,7 @@ macro_rules! try_mut_primitive {
       fn run(
         &mut self,
         item: &mut Self::Item,
-        _stash: &mut Self::Stash,
+        _patch: &mut Self::Patch,
       ) -> Result<(), Self::Error> {
         match self {
           Self::Op(func) => func(item),
@@ -49,10 +49,10 @@ macro_rules! try_mut_primitive {
         &self,
         item: &mut Self::Item,
         err: Self::Error,
-        stash: Self::Stash,
-      ) -> PoisonedMut<Self::Error> {
-        *item = stash;
-        PoisonedMut::Err(err)
+        patch: Self::Patch,
+      ) -> PoisonedErr<Self::Error> {
+        *item = patch;
+        PoisonedErr::Err(err)
       }
     }
 
@@ -60,12 +60,12 @@ macro_rules! try_mut_primitive {
       type Error = AnyhowError;
       type Action = [<$str TryMut>];
 
-      fn try_mut(&mut self, action: &mut Self::Action) -> PoisonedMut<Self::Error> {
-        let mut stash = action.stash(self);
+      fn try_mut(&mut self, action: &mut Self::Action) -> PoisonedErr<Self::Error> {
+        let mut patch = action.patch(self);
 
-        match action.run(self, &mut stash) {
-          Ok(_) => PoisonedMut::Ok,
-          Err(err) => action.revert(self, err, stash),
+        match action.run(self, &mut patch) {
+          Ok(_) => PoisonedErr::Ok,
+          Err(err) => action.revert(self, err, patch),
         }
       }
     }

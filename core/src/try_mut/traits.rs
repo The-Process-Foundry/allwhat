@@ -3,7 +3,7 @@
 use crate::local::*;
 
 /// An object that sets
-pub trait TryMutStash {}
+pub trait TryMutPatch {}
 
 /// A set of closures needed to try an action
 pub trait TryMutAction {
@@ -11,19 +11,19 @@ pub trait TryMutAction {
   type Item;
 
   /// This is the stored information needed for
-  type Stash: TryMutStash;
+  type Patch: TryMutPatch;
 
   type Error: Into<AnyhowError> + Display + Debug + Send + Sync + 'static;
 
   /// The errors that can be returned
 
-  /// Stash items needed to restore upon failure
-  fn stash(&self, item: &Self::Item) -> Self::Stash;
+  /// Patch items needed to restore upon failure
+  fn patch(&self, item: &Self::Item) -> Self::Patch;
 
   /// The actual function to run
   ///
-  /// The stash is passed in since it may be need to be appended to by intermediate steps
-  fn run(&mut self, item: &mut Self::Item, stash: &mut Self::Stash) -> Result<(), Self::Error>;
+  /// The patch is passed in since it may be need to be appended to by intermediate steps
+  fn run(&mut self, item: &mut Self::Item, patch: &mut Self::Patch) -> Result<(), Self::Error>;
 
   /// How to handle errors. Default is to just restore, but the response can be based on error type
   ///
@@ -32,12 +32,12 @@ pub trait TryMutAction {
     &self,
     item: &mut Self::Item,
     err: Self::Error,
-    stash: Self::Stash,
-  ) -> PoisonedMut<Self::Error>;
+    patch: Self::Patch,
+  ) -> PoisonedErr<Self::Error>;
 }
 
 #[derive(Debug)]
-pub enum PoisonedMut<E>
+pub enum PoisonedErr<E>
 where
   E: Into<AnyhowError> + Debug + Display + Send + Sync + 'static,
 {
@@ -54,7 +54,7 @@ where
   Poisoned(E, E),
 }
 
-impl<E> std::fmt::Display for PoisonedMut<E>
+impl<E> std::fmt::Display for PoisonedErr<E>
 where
   E: Into<AnyhowError> + Debug + Display + Send + Sync + 'static,
 {
@@ -63,7 +63,7 @@ where
   }
 }
 
-impl<E> std::error::Error for PoisonedMut<E> where
+impl<E> std::error::Error for PoisonedErr<E> where
   E: Into<AnyhowError> + Debug + Display + Send + Sync + 'static
 {
 }
@@ -85,5 +85,5 @@ pub trait TryMut {
   type Action: TryMutAction;
 
   /// Try to apply a closure to the accumulator and rollback any errors
-  fn try_mut(&mut self, action: &mut Self::Action) -> PoisonedMut<Self::Error>;
+  fn try_mut(&mut self, action: &mut Self::Action) -> PoisonedErr<Self::Error>;
 }

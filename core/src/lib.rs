@@ -1,6 +1,5 @@
 //! Tools for playing with specialized results
 
-mod macros;
 mod monadic;
 
 // #[cfg(feature = "groups")]
@@ -11,8 +10,8 @@ mod split;
 
 mod batch;
 
-#[cfg(feature = "try_mut")]
-mod try_mut;
+// #[cfg(feature = "try_mut")]
+// mod try_mut;
 
 /// Standard items used in components of this crate
 pub(crate) mod local {
@@ -26,11 +25,15 @@ pub(crate) mod local {
 }
 
 pub mod prelude {
-  pub use {super::monadic::Monadic, crate::kc};
+  pub use {super::monadic::Monadic, crate::extract_errors};
 
   // #[cfg(feature = "groups")]
-  pub use super::{batch::BatchResult, group::ErrorGroup, split::SplitResult};
+  pub use super::{
+    batch::BatchResult,
+    group::{ErrorGroup, Grouper},
+    split::SplitResult,
+  };
 
-  #[cfg(feature = "try_mut")]
-  pub use super::try_mut::*;
+  #[cfg(feature = "macros")]
+  pub use allwhat_macros::*;
 }

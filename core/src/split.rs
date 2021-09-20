@@ -2,7 +2,7 @@
 //!
 //! TODO: Add the ? functionality for split results to throw errors
 
-use super::group::ErrorGroup;
+use super::group::{ErrorGroup, Grouper};
 use anyhow::Error as AnyhowError;
 
 #[derive(Debug)]
@@ -15,14 +15,6 @@ pub struct SplitResult<T>
 }
 
 impl<T> SplitResult<T> {
-  /// Convert this to a result, Ok(values) if errors is None and Err(errors) if not
-  pub fn as_result<E: From<ErrorGroup>>(self) -> Result<Vec<T>, E> {
-    match self.errors {
-      Some(err) => Err(err)?,
-      None => Ok(self.values),
-    }
-  }
-
   /// Apply a function to each value of an iterator, sorting successes from errors
   pub fn map<U, E, F>(list: impl Iterator<Item = U>, func: F) -> SplitResult<T>
   where
@@ -30,7 +22,7 @@ impl<T> SplitResult<T> {
     E: Into<AnyhowError>,
   {
     let mut values = vec![];
-    let mut group = ErrorGroup::new();
+    let mut group = ErrorGroup::new(None);
     for item in list {
       match func(item) {
         Ok(value) => values.push(value),
@@ -44,6 +36,28 @@ impl<T> SplitResult<T> {
         0 => None,
         _ => Some(group),
       },
+    }
+  }
+}
+
+impl<T> Grouper for SplitResult<T> {
+  type Result = Vec<T>;
+
+  fn context(self, ctx: String) -> SplitResult<T> {
+    SplitResult {
+      errors: Some(match self.errors {
+        Some(group) => group.set_label(ctx),
+        None => ErrorGroup::new(Some(ctx)),
+      }),
+      ..self
+    }
+  }
+
+  /// Convert this to a result, Ok(values) if errors is None and Err(errors) if not
+  fn as_result<E: From<ErrorGroup>>(self) -> Result<Self::Result, E> {
+    match self.errors {
+      Some(err) => Err(err)?,
+      None => Ok(self.values),
     }
   }
 }

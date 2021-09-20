@@ -51,12 +51,22 @@ impl Debug for AnyhowError {
 
 */
 
+pub trait Grouper {
+  type Result;
+
+  // Set a label to apply to all the errors
+  fn context(self, ctx: String) -> Self;
+
+  fn as_result<E: From<ErrorGroup>>(self) -> Result<Self::Result, E>;
+}
+
 /// An error accumulator
 ///
 /// This is intended to enumerate all the errors found in a transaction rather than failing on
 /// the first
 #[derive(Debug)]
 pub struct ErrorGroup {
+  label: Option<String>,
   errors: Vec<AnyhowError>,
 }
 
@@ -71,19 +81,33 @@ impl Display for ErrorGroup {
       .fold(String::new(), |acc, (i, err)| {
         format!("{}\t{}) {}\n", acc, i, err)
       });
-    write!(f, "ErrorGroup:\n{}", errors)
+    let label = match &self.label {
+      Some(val) => val.clone(),
+      None => "Error Group".to_string(),
+    };
+    write!(f, "{}:\n{}", label, errors)
   }
 }
 
 impl ErrorGroup {
   /// A simple constructor
-  pub fn new() -> ErrorGroup {
-    ErrorGroup { errors: vec![] }
+  pub fn new(label: Option<String>) -> ErrorGroup {
+    ErrorGroup {
+      label,
+      errors: vec![],
+    }
   }
 
   /// Return the number of errors contained
   pub fn len(&self) -> usize {
     self.errors.len()
+  }
+
+  pub fn set_label(self, label: String) -> Self {
+    ErrorGroup {
+      label: Some(label),
+      ..self
+    }
   }
 
   /// Add a new error to the ErrorGroup in place
@@ -152,7 +176,7 @@ impl ErrorGroup {
     results: impl Iterator<Item = Result<T, F>>,
   ) -> (Vec<T>, Option<Self>) {
     let mut result = vec![];
-    let mut errors = ErrorGroup::new();
+    let mut errors = ErrorGroup::new(None);
     for item in results {
       match item {
         Ok(x) => result.push(x),
@@ -232,7 +256,7 @@ macro_rules! extract_errors {
   };
 
   ($result:ident = [$($var:ident $($(: $type:ty)? => $val:expr)?),+ $(,)?]) => {
-    let mut $result = ErrorGroup::new();
+    let mut $result = ErrorGroup::new(Some("Extracted Errors".to_string()));
 
     $(
       extract_errors!(

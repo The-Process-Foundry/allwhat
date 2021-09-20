@@ -17,7 +17,7 @@ use crate::local::*;
 pub struct BatchResult<T> {
   count: u32,
   value: T,
-  errors: Option<ErrorGroup>,
+  errors: ErrorGroup,
 }
 
 // impl<T> TryMut for BatchResult<T>
@@ -65,27 +65,13 @@ impl<T> BatchResult<T> {
     BatchResult {
       count: 0,
       value: init,
-      errors: None,
-    }
-  }
-
-  /// Convert this to a result, Ok(values) if errors is None and Err(errors) if not
-  pub fn as_result<E>(self) -> Result<T, E>
-  where
-    E: From<ErrorGroup>,
-  {
-    match self.errors {
-      Some(err) => Err(err)?,
-      None => Ok(self.value),
+      errors: ErrorGroup::new(Some("Batch Errors".to_string())),
     }
   }
 
   /// The number of errors accumulated
   pub fn count_error(&self) -> u32 {
-    match &self.errors {
-      Some(group) => group.len() as u32,
-      None => 0,
-    }
+    self.errors.len() as u32
   }
 
   /// The number of successful functions run against this result
@@ -102,14 +88,7 @@ impl<T> BatchResult<T> {
   where
     E: Into<AnyhowError>,
   {
-    match &mut self.errors {
-      Some(group) => group.append(err),
-      None => {
-        let mut group = ErrorGroup::new();
-        group.append(err);
-        self.errors = Some(group)
-      }
-    };
+    self.errors.append(err);
   }
 
   /// Run the value through a list of tests and add failures to the result
@@ -118,77 +97,115 @@ impl<T> BatchResult<T> {
     Func: FnOnce(&T) -> Result<(), E>,
     E: Into<AnyhowError>,
   {
-    let mut group = ErrorGroup::new();
+    let mut errors = ErrorGroup::new(None);
     let mut count = 0;
     for test in tests {
       count += 1;
       if let Err(err) = test(&value) {
-        group.append(err.into())
+        errors.append(err.into())
       };
     }
 
     BatchResult {
       count,
       value: value,
-      errors: match group.len() {
-        0 => None,
-        _ => Some(group),
-      },
+      errors,
     }
   }
 
   /// Uses a function to apply each item to the accumulator, storing errors for future examination
   ///
   /// Please note, errors have the potential to corrupt the accumulator since it mutates
-  pub fn fold<U, E, F>(accumulator: T, list: impl Iterator<Item = U>, mut func: F) -> BatchResult<T>
+  pub fn apply<Err, Func>(mut self, func: Func) -> BatchResult<T>
   where
-    F: FnMut(&T, &U) -> Result<(), E>,
-    E: Into<AnyhowError> + Display + Debug + Send + Sync + 'static,
+    Func: Fn(&mut T) -> Result<(), Err>,
+    Err: Into<AnyhowError> + Display + Debug + Send + Sync + 'static,
   {
-    // let mut acc = BatchResult::new(accumulator);
-    // let err = anyhow!("Test ERror");
-    // acc.append(err);
-    // acc
+    self.count += 1;
+    let res = func(&mut self.value);
+    if let Err(err) = res {
+      self.append(err);
+    }
+    self
+  }
+
+  /// Uses a function to apply each item to the accumulator, storing errors for future examination
+  ///
+  /// Please note, errors have the potential to corrupt the accumulator since it mutates
+  pub fn fold<Item, Err, Func>(
+    accumulator: T,
+    list: impl Iterator<Item = Item>,
+    func: Func,
+  ) -> BatchResult<T>
+  where
+    Func: Fn(&mut T, Item) -> Result<(), Err>,
+    Err: Into<AnyhowError> + Display + Debug + Send + Sync + 'static,
+  {
     list.fold(BatchResult::new(accumulator), |mut acc, item| {
       acc.count += 1;
-      let res = func(&acc.value, &item);
+      let res = func(&mut acc.value, item);
       if let Err(err) = res {
         acc.append(err);
       }
       acc
     })
   }
+}
 
-  /// Attempt to fold a set of values into the accumulator, rolling back errors
-  ///
-  /// This is heavy, and requires implementing TryMut to use this. The difference is that the
-  /// accumulator won't be left in an unknown state after an error.
-  #[cfg(feature = "try_mut")]
-  pub fn try_fold<U, F>(
-    accumulator: T,
-    list: impl Iterator<Item = U>,
-    action: Box<dyn Fn(U) -> T::Action>,
-  ) -> BatchResult<T>
-  where
-    F: Fn(&mut T, &U) -> PoisonedMut<T::Error>,
-    T: TryMut,
-  {
-    let acc = BatchResult::new(accumulator);
-    // for item in list {
-    //   acc.count += 1;
-    //   match acc.value.try_mut(|value| func(value, &item)) {
-    //     PoisonedMut::Ok => (),
-    //     PoisonedMut::Err(err) => acc.append(err),
-    //     PoisonedMut::Poisoned(err1, err2) => {
-    //       let error = anyhow!(err2).context(err1);
-    //       println!("{}", error);
-    //     }
-    //   };
-    // }
-    acc
+impl<T> Grouper for BatchResult<T> {
+  type Result = T;
+
+  fn context(self, ctx: String) -> BatchResult<T> {
+    BatchResult {
+      errors: self.errors.set_label(ctx),
+      ..self
+    }
   }
 
-  // A set of functions where all need to succeed or the successes should also be rolled back.
-  // THINK: Maybe a macro
-  // pub fn transaction()
+  /// Convert this to a result, Ok(values) if errors is None and Err(errors) if not
+  fn as_result<E: From<ErrorGroup>>(self) -> Result<Self::Result, E> {
+    match self.errors.len() {
+      0 => Ok(self.value),
+      _ => Err(self.errors.into()),
+    }
+  }
 }
+
+/*
+
+----  Found a nightly workaround for try_insert for hashmap, so I'm going to wait to implement
+      this
+
+/// Attempt to fold a set of values into the accumulator, rolling back errors
+///
+/// This is heavy, and requires implementing TryMut to use this. The difference is that the
+/// accumulator won't be left in an unknown state after an error.
+#[cfg(feature = "try_mut")]
+pub fn try_fold<U, F>(
+  accumulator: T,
+  list: impl Iterator<Item = U>,
+  action: Box<dyn Fn(U) -> T::Action>,
+) -> BatchResult<T>
+where
+  F: Fn(&mut T, &U) -> PatchResult<T::Error, T::Action>,
+  T: Revertable,
+{
+  let acc = BatchResult::new(accumulator);
+  // for item in list {
+  //   acc.count += 1;
+  //   match acc.value.try_mut(|value| func(value, &item)) {
+  //     PoisonErr::Ok => (),
+  //     PoisonErr::Err(err) => acc.append(err),
+  //     PoisonErr::Poisoned(err1, err2) => {
+  //       let error = anyhow!(err2).context(err1);
+  //       println!("{}", error);
+  //     }
+  //   };
+  // }
+  acc
+}
+
+// A set of functions where all need to succeed or the successes should also be rolled back.
+// THINK: Maybe a macro
+// pub fn transaction()
+*/
