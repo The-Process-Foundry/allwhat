@@ -11,12 +11,12 @@ readme = "README.md"
 categories = ["rust-patterns"]
 
 [features]
-default = ["groups", "batch", "iteration", "proc_macros"]
-all = ["groups", "batch", "iteration", "proc_macros"]
+default = ["groups", "batch", "iteration", "macros"]
+all = ["groups", "batch", "iteration", "macros"]
 batch = ["groups"]
 groups = []
 iteration = []
-proc_macros = []
+macros = []
 
 [dependencies]
 # Basic Logging

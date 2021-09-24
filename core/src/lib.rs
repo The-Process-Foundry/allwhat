@@ -10,6 +10,9 @@ mod split;
 
 mod batch;
 
+#[cfg(feature = "macros")]
+pub use allwhat_macros::*;
+
 // #[cfg(feature = "try_mut")]
 // mod try_mut;
 
@@ -33,7 +36,26 @@ pub mod prelude {
     group::{ErrorGroup, Grouper},
     split::SplitResult,
   };
-
-  #[cfg(feature = "macros")]
-  pub use allwhat_macros::*;
 }
+
+// fn test_macro_defunct() {
+//   pub use prelude::*;
+
+//   struct TestMap {
+//     pub int_maybe: i32,
+//     pub int_sure: i32,
+//     pub float_maybe: f32,
+//     pub float_sure: f32,
+//   }
+
+//   let map: Result<TestMap, ErrorGroup> = try_assign! {
+//     TestMap {
+//       float_maybe: 3.14159,
+//       int_maybe: 42,
+//       float_sure: 1.602,
+//       int_sure: 82
+//     }
+//   };
+
+//   assert!(false)
+// }

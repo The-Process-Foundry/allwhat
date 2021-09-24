@@ -16,6 +16,8 @@ pub struct SplitResult<T>
 
 impl<T> SplitResult<T> {
   /// Apply a function to each value of an iterator, sorting successes from errors
+  ///
+  // Similar to iterator.partition
   pub fn map<U, E, F>(list: impl Iterator<Item = U>, func: F) -> SplitResult<T>
   where
     F: Fn(U) -> Result<T, E>,
