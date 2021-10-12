@@ -7,3 +7,4 @@
 
 mod expr_call;
 mod expr_field;
+mod expr_struct;

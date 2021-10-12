@@ -5,68 +5,6 @@ mod common;
 // use anyhow::Context;
 
 /*
-/// There is a strange bug where anyhow would blow up when using a try_from from using the ?.
-/// Level 0 of the stack points to a macro in anyhow. It was definitely an error going in and I
-/// cannot find where it is actually trying the unwrap, let alone where an Ok would be expected.
-/// Modifying my code to be more generic so it accepts items other than anyhow items
-
-thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: Could not validate the headers for LABdivus
-
-Caused by:
-    0: The headers are invalid because:
-    1: ErrorGroup:
-         0) Validate Headers is not implemented
-        1) Validate Headers is not implemented
-        2) Validate Headers is not implemented
-
-Stack backtrace:
-   0: anyhow::error::<impl core::convert::From<E> for anyhow::Error>::from
-             at /home/dfogelson/Foundry/anyhow/src/error.rs:524:25
-   1: <T as core::convert::Into<U>>::into
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/core/src/convert/mod.rs:540:9
-   2: allwhat::annotation::BatchResult<T>::as_result
-             at /home/dfogelson/Foundry/allwhat/src/annotation.rs:18:22
-   3: subpar::base::row::RowTemplate::validate_headers
-             at /home/dfogelson/Foundry/Subpar/subpar/src/base/row.rs:159:5
-   4: subpar::csv::io::reader::CsvReader::new
-             at /home/dfogelson/Foundry/Subpar/subpar/src/csv/io/reader.rs:150:31
-   5: fhl_server::test_to_row
-             at ./fhl-server/src/main.rs:78:20
-   6: fhl_server::main
-             at ./fhl-server/src/main.rs:98:14
-   7: core::ops::function::FnOnce::call_once
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/core/src/ops/function.rs:227:5
-   8: std::sys_common::backtrace::__rust_begin_short_backtrace
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/sys_common/backtrace.rs:125:18
-   9: std::rt::lang_start::{{closure}}
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/rt.rs:63:18
-  10: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/core/src/ops/function.rs:259:13
-  11: std::panicking::try::do_call
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/panicking.rs:403:40
-  12: std::panicking::try
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/panicking.rs:367:19
-  13: std::panic::catch_unwind
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/panic.rs:129:14
-  14: std::rt::lang_start_internal::{{closure}}
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/rt.rs:45:48
-  15: std::panicking::try::do_call
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/panicking.rs:403:40
-  16: std::panicking::try
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/panicking.rs:367:19
-  17: std::panic::catch_unwind
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/panic.rs:129:14
-  18: std::rt::lang_start_internal
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/rt.rs:45:20
-  19: std::rt::lang_start
-             at /rustc/0035d9dcecee49d1f7349932bfa52c05a6f83641/library/std/src/rt.rs:62:5
-  20: main
-  21: __libc_start_main
-  22: _start', fhl-server/src/main.rs:78:82
-
-*/
-
-/*
 
 #[test]
 /// Test try_mut with a fancy hashmap
