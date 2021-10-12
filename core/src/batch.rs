@@ -139,13 +139,13 @@ impl<T> BatchResult<T> {
   ) -> BatchResult<T>
   where
     Func: Fn(&mut T, Item) -> Result<(), Err>,
-    Err: Into<AnyhowError> + Display + Debug + Send + Sync + 'static,
+    Err: Display + Debug + Send + Sync + 'static,
   {
     list.fold(BatchResult::new(accumulator), |mut acc, item| {
       acc.count += 1;
       let res = func(&mut acc.value, item);
       if let Err(err) = res {
-        acc.append(err);
+        acc.append(anyhow!(err));
       }
       acc
     })

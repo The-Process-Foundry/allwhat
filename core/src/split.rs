@@ -3,7 +3,7 @@
 //! TODO: Add the ? functionality for split results to throw errors
 
 use super::group::{ErrorGroup, Grouper};
-use anyhow::Error as AnyhowError;
+use anyhow::anyhow;
 
 #[derive(Debug)]
 pub struct SplitResult<T>
@@ -21,19 +21,19 @@ impl<T> SplitResult<T> {
   pub fn map<U, E, F>(list: impl Iterator<Item = U>, func: F) -> SplitResult<T>
   where
     F: Fn(U) -> Result<T, E>,
-    E: Into<AnyhowError>,
+    E: std::fmt::Display + std::fmt::Debug + Sync + Send + 'static,
   {
     let mut values = vec![];
     let mut group = ErrorGroup::new(None);
     for item in list {
       match func(item) {
         Ok(value) => values.push(value),
-        Err(err) => group.append(err),
+        Err(err) => group.append(anyhow!(err)),
       }
     }
 
     SplitResult {
-      values: values,
+      values,
       errors: match group.len() {
         0 => None,
         _ => Some(group),

@@ -4,6 +4,7 @@ mod monadic;
 
 // #[cfg(feature = "groups")]
 mod group;
+pub use group::ErrorGroup;
 
 // #[cfg(feature = "groups")]
 mod split;
@@ -48,7 +49,7 @@ pub mod prelude {
 //     pub float_sure: f32,
 //   }
 
-//   let map: Result<TestMap, ErrorGroup> = try_assign! {
+//   let map: Result<TestMap, ErrorGroup> = bulk_try! {
 //     TestMap {
 //       float_maybe: 3.14159,
 //       int_maybe: 42,

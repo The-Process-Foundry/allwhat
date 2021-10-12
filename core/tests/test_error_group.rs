@@ -19,7 +19,7 @@ fn cmp<T: Eq>(left: Result<T>, right: Result<T, &str>) -> bool {
 }
 
 #[test]
-fn test_error_group() -> () {
+fn test_error_group() {
   let mut group: ErrorGroup = ErrorGroup::new(None);
 
   let value1: Result<&str, TestErr> = Ok("Ok does nothing");
@@ -40,7 +40,7 @@ fn test_error_group() -> () {
 
 #[test]
 #[allow(unused_assignments)]
-fn test_extract_errors() -> () {
+fn test_extract_errors() {
   use allwhat::extract_errors;
   use anyhow::{Context, Result};
 
@@ -70,7 +70,7 @@ fn test_extract_errors() -> () {
       int_3,
       // Just add a function call or block of code to execute
       str_1 => get_str("String 1", true),
-      str_2: Result<String> => Ok(format!("String 2")),
+      str_2: Result<String> => Ok("String 2".to_string()),
       str_3 => {
         let block = get_str("String 3", true);
         block.context("No Error, but adding a context anyways")
@@ -86,8 +86,8 @@ fn test_extract_errors() -> () {
   // Now we have an 3 values that are Ok, 4 Errors, and an ErrorResult named err_res with 4 errors.
   assert_eq!(int_1.unwrap(), 1);
   assert_eq!(str_1.unwrap().to_string(), "Valid: String 1".to_string());
-  assert_eq!(str_2.unwrap().to_string(), format!("String 2"));
-  assert_eq!(str_3.unwrap().to_string(), format!("Valid: String 3"));
+  assert_eq!(str_2.unwrap().to_string(), "String 2".to_string());
+  assert_eq!(str_3.unwrap().to_string(), "Valid: String 3".to_string());
 
   assert_eq!(err_res.len(), 4);
 
@@ -110,7 +110,7 @@ fn test_extract_errors() -> () {
   );
 
   // And inspect the contents of the Error Group
-  let display = "Extracted Errors:\n\t0) Forced Error for val 2\n\t1) Forced 3 with a context\n\t2) Invalid: String 4\n\t3) String 5 errored with context\n".to_string();
+  let display = "Extracted Errors:\n\t1) Forced Error for val 2\n\t2) Forced 3 with a context\n\t3) Invalid: String 4\n\t4) String 5 errored with context\n".to_string();
   assert_eq!(err_res.to_string(), display);
 
   let debug = "ErrorGroup { label: Some(\"Extracted Errors\"), errors: [Forced Error for val 2, Forced 3 with a context\n\nCaused by:\n    Forced Error for val 3, Invalid: String 4, String 5 errored with context\n\nCaused by:\n    Invalid: String 5] }".to_string();

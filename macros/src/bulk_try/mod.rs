@@ -15,10 +15,12 @@ use syn::spanned::Spanned;
 mod ast;
 use ast::{Expr, Questionable, Unwrapped};
 
+use ymlog::ymlog;
 // use super::ast::AssignmentRoot;
 
-/// Run the try_assign macro
+/// Run the bulk_try macro
 pub fn run_macro(input: TokenStream) -> TokenStream {
+  ymlog!("_+" => "Starting the macro");
   let parsed: Expr = match syn::parse2(input) {
     Ok(syntax_tree) => syntax_tree,
     Err(err) => return err.to_compile_error(),
@@ -26,7 +28,7 @@ pub fn run_macro(input: TokenStream) -> TokenStream {
 
   let error_span = parsed.span().unwrap();
 
-  let Unwrapped { had_try, expr } = match parsed.unwrap_tries() {
+  let Unwrapped { try_count, expr } = match parsed.unwrap_tries() {
     Ok(res) => res,
     Err(err) => return err.to_compile_error(),
   };
@@ -38,14 +40,15 @@ pub fn run_macro(input: TokenStream) -> TokenStream {
   //        |
   //     10 |
   //        |                ^^^
-  if !had_try {
+  if try_count == 0 {
     error_span
       .warning("No accessable tries found. Are you sure this is necessary?")
       .emit();
   }
 
+  // And we wrap up the final result based on everything found
   quote! {{
-    let mut __error_group = ErrorGroup::new(Some("Try Assign Aggregation".to_string()));
+    let mut __error_group = ErrorGroup::new(Some("Bulk Try Aggregation".to_string()));
 
     let expr = {
       #expr

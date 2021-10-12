@@ -19,7 +19,7 @@ will garner a minor-version increase.
 
 These are the remaining items that need to be done before I will release this as a crate
 
-- Finish implementing try_assign proc_macro for all reasonable expression types
+- Finish implementing bulk_try proc_macro for all reasonable expression types
 - Make current Subpar CSV Reader project
 - Add Filtrate validation to schemars
 - Clean up documentation (including/especially this README)

@@ -79,7 +79,7 @@ impl Display for ErrorGroup {
       .iter()
       .enumerate()
       .fold(String::new(), |acc, (i, err)| {
-        format!("{}\t{}) {}\n", acc, i, err)
+        format!("{}\t{}) {}\n", acc, i + 1, err)
       });
     let label = match &self.label {
       Some(val) => val.clone(),
@@ -103,6 +103,11 @@ impl ErrorGroup {
     self.errors.len()
   }
 
+  /// Return if there are any errors in the list
+  pub fn is_empty(&self) -> bool {
+    self.errors.is_empty()
+  }
+
   pub fn set_label(self, label: String) -> Self {
     ErrorGroup {
       label: Some(label),
@@ -111,7 +116,7 @@ impl ErrorGroup {
   }
 
   /// Add a new error to the ErrorGroup in place
-  pub fn append<F: Into<AnyhowError>>(&mut self, error: F) -> () {
+  pub fn append<F: Into<AnyhowError>>(&mut self, error: F) {
     self.errors.push(error.into());
   }
 
@@ -122,10 +127,7 @@ impl ErrorGroup {
   }
 
   /// Add on a list of errors
-  pub fn extend<T, F: Into<AnyhowError>>(
-    &mut self,
-    _list: impl Iterator<Item = Result<T, F>>,
-  ) -> () {
+  pub fn extend<T, F: Into<AnyhowError>>(&mut self, _list: impl Iterator<Item = Result<T, F>>) {
     unimplemented!("'' still needs to be implemented")
   }
 
@@ -136,9 +138,11 @@ impl ErrorGroup {
   ///
   /// Example:
   /// ```rust
-  /// use anyhow::{anyhow, Context, ErrorGroup, Result};
+  /// use anyhow::{anyhow, Context, Result};
+  /// use allwhat::ErrorGroup;
+
   ///
-  /// let mut group: ErrorGroup = ErrorGroup::new();
+  /// let mut group: ErrorGroup = ErrorGroup::new(Some("Group Label".to_string()));
   ///
   /// let value1: Result<&str> = Ok("Ok does nothing");
   /// assert!(cmp(group.extract(value1), Ok("Ok does nothing")));
@@ -146,13 +150,13 @@ impl ErrorGroup {
   /// let value2: Result<()> = Err(anyhow!("Value2 Error"));
   /// assert!(cmp(
   ///   group.extract(value2),
-  ///   Err("(Extracted) - Value2 Error")
+  ///   Err(())
   /// ));
 
   /// let value3: Result<()> = Err(anyhow!("Value3 Error")).context("Context Value");
   /// assert!(cmp(
   ///   group.extract(value3),
-  ///   Err("(Extracted) - Context Value")
+  ///   Err(())
   /// ));
   /// ```
   pub fn extract<T, F>(&mut self, result: Result<T, F>) -> Result<T, AnyhowError>
@@ -164,7 +168,7 @@ impl ErrorGroup {
       Err(err) => {
         let new_err = anyhow!("(Extracted) - {}", err);
         self.append(err);
-        Err(new_err)?
+        Err(new_err)
       }
     }
   }
@@ -172,7 +176,7 @@ impl ErrorGroup {
   /// Unwrap a list of results, splitting it into unwrapped values and an optional flattened error
   ///
   /// THINK: Should there al
-  pub fn unwrap_all<'a, T, F: Into<AnyhowError> + Display>(
+  pub fn unwrap_all<T, F: Into<AnyhowError> + Display>(
     results: impl Iterator<Item = Result<T, F>>,
   ) -> (Vec<T>, Option<Self>) {
     let mut result = vec![];
@@ -198,7 +202,8 @@ impl ErrorGroup {
 ///
 /// Example:
 /// ```rust
-/// use anyhow::{anyhow, Context, ErrorGroup, Result, extract_errors};
+/// use anyhow::{anyhow, Context, Result};
+/// use allwhat::{ErrorGroup, extract_errors};
 ///
 /// fn get_int(val: i64, is_ok: bool) -> Result<u64, String> {
 ///   match is_ok {
