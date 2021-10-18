@@ -3,8 +3,9 @@
 //! These require investigating each variant of syn::Expr, so to reduce the noise I'm separating
 //! them all out into separate files.
 
-// pub mod models;
+pub use super::common::{self, ERR};
 
 mod expr_call;
 mod expr_field;
+mod expr_method_call;
 mod expr_struct;

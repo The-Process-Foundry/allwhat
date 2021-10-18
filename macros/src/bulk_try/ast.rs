@@ -117,9 +117,9 @@ impl Unwrapped {
   /// The primary purpose of this is to reduce noise in the code created by debugging statements
   pub fn log_ok(self) -> Result<Unwrapped> {
     let expr = &self.expr;
-    ymlog!("_+" => "Finalizing Token Stream:");
+    ymlog!("_+" => "Unwrap result:");
     ymlog!("_" => "Try Count = {}", self.try_count);
-    ymlog!("_--" => "Expr {}", quote!{#expr});
+    ymlog!("_--" => "Final Expression:\n{}", quote!{#expr});
     // ymlog!("Finalizing {}", self);
     Ok(self)
   }
@@ -211,6 +211,7 @@ impl Questionable for ExprTry {
 
     // If there was a nested try, errors may have already been extracted, which causes a type
     // mismatch on the error grouping
+    ymlog!("TryExpr's inner value contained {} tries", try_count);
     let expr_value = match try_count == 0 {
       true => quote! { try_expr },
       false => quote! { try_expr.unwrap() },
@@ -274,7 +275,7 @@ impl Questionable for ExprCall {
     if unwrap.is_empty() {
       ymlog! {"_" => "Returning the unchanged call"};
       Unwrapped {
-        try_count: 1,
+        try_count: count,
         expr: cloned_call,
       }
     } else {
@@ -427,7 +428,7 @@ impl Questionable for FieldValue {
 impl Questionable for ExprMethodCall {
   fn unwrap_tries(self) -> Result<Unwrapped> {
     let cloned_call = quote! {#self};
-    ymlog!("T_+" => "Processing Method Call: {}", cloned_call);
+    ymlog!("_+" => "Processing Method Call: {}", cloned_call);
 
     let mut unwrap = TokenStream::new();
     // let mut assign = TokenStream::new();
@@ -446,6 +447,7 @@ impl Questionable for ExprMethodCall {
     //   }
     // }
 
+    let mut count = 0;
     let mut args: Punctuated<Expr, Token![,]> = Punctuated::new();
 
     for (i, param) in self.args.into_iter().enumerate() {
@@ -453,8 +455,9 @@ impl Questionable for ExprMethodCall {
       let name = Ident::new(&format!("param_{}", i), Span::call_site());
 
       let Unwrapped { try_count, expr } = param.unwrap_tries()?;
-      if try_count {
-        ymlog!("T" => "Processing Param {}", quote! {#name});
+      if try_count > 0 {
+        count += 0;
+        ymlog!("Processing Param {}", quote! {#name});
         unwrap.extend(quote! {
           let #name = { #expr };
         });
@@ -466,9 +469,9 @@ impl Questionable for ExprMethodCall {
     }
 
     if unwrap.is_empty() {
-      ymlog! {"T" => "Returning the unchanged method call"};
+      ymlog! {"Returning the unchanged method call"};
       Unwrapped {
-        try_count: false,
+        try_count: count,
         expr: cloned_call,
       }
     } else {
@@ -476,10 +479,10 @@ impl Questionable for ExprMethodCall {
         args,
         ..{ syn::parse2(cloned_call)? }
       };
-      ymlog! {"T" => "Returning an updated method call: {}", quote!{#updated_call}};
+      ymlog! {"Returning an updated method call: {}", quote!{#updated_call}};
 
       Unwrapped {
-        try_count: true,
+        try_count: count,
         expr: quote! {
           #unwrap
 
@@ -492,8 +495,133 @@ impl Questionable for ExprMethodCall {
     }
     .log_ok()
   }
+}*/
+
+/// A stand-alone function call, both functions and closures
+impl Questionable for ExprMethodCall {
+  fn unwrap_tries(self) -> Result<Unwrapped> {
+    let cloned_call = quote! {#self};
+    ymlog!("_+" =>  "Processing a method call: {}", cloned_call);
+
+    // A running total of try expressions encountered
+    let mut count = 0;
+    let mut unwrap = TokenStream::new();
+    let mut args: Punctuated<Expr, Token![,]> = Punctuated::new();
+
+    // The receiver is the object before the dot. This is allowed to have a try, so we process it.
+    let Unwrapped { try_count, expr } = self.receiver.unwrap_tries()?;
+    count += try_count;
+    let receiver = match try_count == 0 {
+      true => None,
+      false => Some(expr),
+    };
+
+    for (i, param) in self.args.into_iter().enumerate() {
+      let param_clone = quote! { #param };
+      let name = Ident::new(&format!("param_{}", i), Span::call_site());
+
+      let Unwrapped { try_count, expr } = param.unwrap_tries()?;
+      if try_count > 0 {
+        count += try_count;
+        ymlog!("_" => "Extracting try from param {}", quote! {#name});
+        unwrap.extend(quote! {
+          let #name = { #expr };
+        });
+
+        args.push(syn::parse2(quote! { #name.unwrap() })?);
+      } else {
+        args.push(syn::parse2(param_clone)?);
+      }
+    }
+
+    let expr = match (&receiver, unwrap.is_empty()) {
+      (Some(receiver), _) => {
+        ymlog!("T_+" => "updated_call");
+        ymlog!("T_" => "Receiver: {}", quote! {#receiver});
+        ymlog!("T_" => "Args: {}", quote! {#args});
+        ymlog!("T_" => "Updating full method call (receiver and args)");
+
+        let updated_call = ExprMethodCall {
+          receiver: Box::new(syn::parse2(quote!(receiver.unwrap())).unwrap()),
+          args,
+          ..{ syn::parse2(cloned_call)? }
+        };
+
+        ymlog!("T_-" => "{}", quote!(#updated_call));
+
+        quote! {{
+          let error_count = __error_group.len();
+          // Checking the receiver
+          let receiver = #receiver;
+
+          // Check all the parameters
+          #unwrap
+
+          match error_count == __error_group.len() {
+            true => {
+              Ok(#updated_call)
+            }
+            false => Err(()),
+          }
+        }}
+      }
+      (None, false) => {
+        ymlog!("Updating arguments only");
+        let updated_call = ExprMethodCall {
+          args,
+          ..{ syn::parse2(cloned_call)? }
+        };
+
+        quote! {
+          let error_count = __error_group.len();
+          #unwrap
+
+          match error_count == __error_group.len() {
+            true => {
+              Ok(#updated_call)
+            }
+            false => Err(()),
+          }
+
+        }
+      }
+      (None, true) => {
+        ymlog!("Returning the unchanged call");
+        cloned_call
+      }
+    };
+
+    ymlog!("Updated method call expr");
+    ymlog!("{}", expr);
+    Unwrapped {
+      try_count: count,
+      expr,
+    }
+    .log_ok()
+    /*
+    } else {
+      let updated_call = ExprCall {
+        args,
+        ..{ syn::parse2(cloned_call)? }
+      };
+      ymlog! {"T" => "Returning an updated call: {}", quote!{#updated_call}};
+
+      Unwrapped {
+        try_count: count + 1,
+        expr: quote! {
+          let pre_try_err_count = __error_group.len();
+          #unwrap
+
+          match __error_group.len() == pre_try_err_count {
+            true => Ok(#updated_call),
+            false => Err(()),
+          }
+        },
+      }
+    }
+    */
+  }
 }
-*/
 
 /// These are items which have no more nested expressions to be parsed. Closures and macros are
 /// included because digging into them can have unintended consequences.
@@ -530,7 +658,6 @@ macro_rules! unexamined_expr {
 }
 
 unexamined_expr!(
-  ExprMethodCall,
   ExprBlock,
   ExprMatch,
   ExprArray,

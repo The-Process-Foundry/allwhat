@@ -20,7 +20,7 @@ use ymlog::ymlog;
 
 /// Run the bulk_try macro
 pub fn run_macro(input: TokenStream) -> TokenStream {
-  ymlog!("_+" => "Starting the macro");
+  ymlog!("r_+" => "Starting the macro");
   let parsed: Expr = match syn::parse2(input) {
     Ok(syntax_tree) => syntax_tree,
     Err(err) => return err.to_compile_error(),
@@ -47,7 +47,8 @@ pub fn run_macro(input: TokenStream) -> TokenStream {
   }
 
   // And we wrap up the final result based on everything found
-  quote! {{
+
+  let result = quote! {{
     let mut __error_group = ErrorGroup::new(Some("Bulk Try Aggregation".to_string()));
 
     let expr = {
@@ -58,5 +59,7 @@ pub fn run_macro(input: TokenStream) -> TokenStream {
       true => Err(__error_group),
       false => Ok(expr.unwrap()),
     }
-  }}
+  }};
+  ymlog! {"Run Macro Result: {}", result};
+  result
 }

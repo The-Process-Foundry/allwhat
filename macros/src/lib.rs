@@ -12,6 +12,7 @@ lazy_static::lazy_static! {
       .unwrap();
     let mut logger = ymlog::YmLog::new();
     logger.set_output(file);
+    logger.set_level(ymlog::Level::Debug);
     std::sync::Mutex::new(logger)
   };
 }
@@ -26,8 +27,8 @@ pub(crate) mod bulk_try;
 /// instead of returning the first it will gather them all. The output of this macro is
 /// Result<T, ErrorGroup>.
 pub fn bulk_try(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    {
-        let _x = crate::LOG.lock();
-    }
-    bulk_try::run_macro(proc_macro2::TokenStream::from(item)).into()
+  {
+    let _x = crate::LOG.lock();
+  }
+  bulk_try::run_macro(proc_macro2::TokenStream::from(item)).into()
 }

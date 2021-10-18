@@ -1,40 +1,41 @@
 [package]
-name = "allwhat"
-version = "0.1.0" # remember to update html_root_url
 authors = ["Dave Fogelson <theprocessfoundry.com>"]
+categories = ["rust-patterns"]
+description = "Extended Result functionality"
+documentation = "https://github.com/the_process_foundry/allwhat"
 edition = "2018"
 license = "MIT OR Apache-2.0"
-description = "Extended Result functionality"
-repository = "https://github.com/the_process_foundry/allwhat"
-documentation = "https://github.com/the_process_foundry/allwhat"
+name = "allwhat"
 readme = "README.md"
-categories = ["rust-patterns"]
+repository = "https://github.com/the_process_foundry/allwhat"
+version = "0.1.0" # remember to update html_root_url
 
 [features]
-default = ["groups", "batch", "iteration", "macros"]
 all = ["groups", "batch", "iteration", "macros"]
 batch = ["groups"]
+default = ["groups", "batch", "iteration", "macros"]
 groups = []
 iteration = []
 macros = []
 
 [dependencies]
 # Basic Logging
-log = "0.4.14"
 env_logger = "0.9.0"
+log = "0.4.14"
 
 # anyhow = { version = "1.0.43", optional = false }
-anyhow = { path = "../../anyhow", optional = false }
+anyhow = {path = "../../anyhow", optional = false}
 
 # For building basic macros
 paste = "1.0.5"
 
 # proc_macros that implement allwhat
-allwhat-macros = { path = "../macros" }
+allwhat-macros = {path = "../macros"}
 
 [dev-dependencies]
 fake = "2.4.1"
+lazy_static = "1.4.0"
 
 [package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
 rustdoc-args = ["--cfg", "doc_cfg"]
+targets = ["x86_64-unknown-linux-gnu"]

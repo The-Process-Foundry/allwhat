@@ -3,6 +3,9 @@
 //! Each type of expression that can contain a question mark is tested in its own file. Cleaner
 //! just to import the directory
 
+pub mod common;
+pub use common::ERR;
+
 pub mod bulk_try;
 
 // Test Enum
