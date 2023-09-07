@@ -81,12 +81,10 @@ macro_rules! kc {
 
 #[cfg(test)]
 mod tests {
-  use anyhow::anyhow;
-
   use super::Monadic;
 
   #[test]
-  fn test_kleisli() -> () {
+  fn test_kleisli() {
     use crate::kc;
     use std::boxed::Box;
     use std::cell::RefCell;
@@ -104,7 +102,7 @@ mod tests {
 
     // Same with starting with an error
     let start = kc!(
-      Err(anyhow!("Start Error"))
+      Err("Start Error".to_string())
       => |t| Ok(Some(t))
       => |t: Option<String>| {
         let u = t.unwrap().push_str("Back To a String");
@@ -112,22 +110,19 @@ mod tests {
       }
     );
 
-    assert_eq!(
-      start.unwrap_err().to_string(),
-      anyhow!("Start Error").to_string()
-    );
+    assert_eq!(start.unwrap_err().to_string(), "Start Error".to_string());
 
     // Here's where it gets interesting, where the error happens in the middle
     let middle: Result<i32, _> = kc!(
       Ok(10)
       => |t| Ok(t + 5)
-      => |_| Err(anyhow!("Raising an error here"))
+      => |_| Err("Raising an error here".to_string())
       => |t: i32| Ok(t + 20)
     );
 
     assert_eq!(
       middle.unwrap_err().to_string(),
-      anyhow!("Raising an error here").to_string()
+      "Raising an error here".to_string()
     );
 
     // A caution on mutable variables. This does not prevent mutation on values before the error
@@ -146,10 +141,7 @@ mod tests {
       }
     );
     // Returns an error
-    assert_eq!(
-      mutant.unwrap_err().to_string(),
-      anyhow!("Now an error").to_string()
-    );
+    assert_eq!(mutant.unwrap_err().to_string(), "Now an error".to_string());
     // But the value has been partially increased
     assert_eq!(*value.borrow(), 105);
   }

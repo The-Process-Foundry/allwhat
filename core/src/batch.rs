@@ -69,6 +69,14 @@ impl<T> BatchResult<T> {
     }
   }
 
+  /// Change the label on the error group
+  pub fn set_label(self, label: &str) -> BatchResult<T> {
+    BatchResult {
+      errors: self.errors.set_label(label.into()),
+      ..self
+    }
+  }
+
   /// The number of errors accumulated
   pub fn count_error(&self) -> u32 {
     self.errors.len() as u32
@@ -81,34 +89,40 @@ impl<T> BatchResult<T> {
 
   /// The total number of functions run against this result
   pub fn count(&self) -> u32 {
-    self.count.clone()
+    self.count
   }
 
+  /// Whether any errors were found in the batch
+  pub fn is_ok(&self) -> bool {
+    self.count_error() == 0
+  }
+
+  /// Add an additional error to the batch result
   pub fn append<E>(&mut self, err: E)
   where
-    E: Into<AnyhowError>,
+    E: Debug,
   {
-    self.errors.append(err);
+    self.errors.append(format!("{:#?}", err));
   }
 
   /// Run the value through a list of tests and add failures to the result
   pub fn validate<E, Func>(value: T, tests: impl Iterator<Item = Func>) -> BatchResult<T>
   where
     Func: FnOnce(&T) -> Result<(), E>,
-    E: Into<AnyhowError>,
+    E: Debug,
   {
     let mut errors = ErrorGroup::new(None);
     let mut count = 0;
     for test in tests {
       count += 1;
       if let Err(err) = test(&value) {
-        errors.append(err.into())
+        errors.append(format!("{:#?}", err))
       };
     }
 
     BatchResult {
       count,
-      value: value,
+      value,
       errors,
     }
   }
@@ -119,12 +133,12 @@ impl<T> BatchResult<T> {
   pub fn apply<Err, Func>(mut self, func: Func) -> BatchResult<T>
   where
     Func: Fn(&mut T) -> Result<(), Err>,
-    Err: Into<AnyhowError> + Display + Debug + Send + Sync + 'static,
+    Err: Display + Debug + Send + Sync + 'static,
   {
     self.count += 1;
     let res = func(&mut self.value);
     if let Err(err) = res {
-      self.append(err);
+      self.append(format!("{:#?}", err));
     }
     self
   }
@@ -132,6 +146,7 @@ impl<T> BatchResult<T> {
   /// Uses a function to apply each item to the accumulator, storing errors for future examination
   ///
   /// Please note, errors have the potential to corrupt the accumulator since it mutates
+  /// TODO: Make this fold_mut. fold should take a builder style
   pub fn fold<Item, Err, Func>(
     accumulator: T,
     list: impl Iterator<Item = Item>,
@@ -145,10 +160,37 @@ impl<T> BatchResult<T> {
       acc.count += 1;
       let res = func(&mut acc.value, item);
       if let Err(err) = res {
-        acc.append(anyhow!(err));
+        acc.append(err);
       }
       acc
     })
+  }
+
+  /// Equivalent of a for loop, capturing all errors into a single batch
+  ///
+  /// If a value is expected to be returned, SplitResult should be used
+  pub fn foreach<Item, Err, Func>(
+    list: impl Iterator<Item = Item>,
+    func: &mut Func,
+  ) -> BatchResult<()>
+  where
+    Func: FnMut(Item) -> Result<(), Err>,
+    Err: Display + Debug + Send + Sync + 'static,
+  {
+    let mut result = BatchResult {
+      count: 0,
+      value: (),
+      errors: ErrorGroup::new(Some("ForEach loop result".to_string())),
+    };
+
+    for item in list {
+      result.count += 1;
+      match func(item) {
+        Ok(_) => (),
+        Err(err) => result.append(err),
+      }
+    }
+    result
   }
 }
 

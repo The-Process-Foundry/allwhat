@@ -3,7 +3,6 @@
 //! TODO: Add the ? functionality for split results to throw errors
 
 use super::group::{ErrorGroup, Grouper};
-use anyhow::anyhow;
 
 #[derive(Debug)]
 pub struct SplitResult<T>
@@ -28,7 +27,7 @@ impl<T> SplitResult<T> {
     for item in list {
       match func(item) {
         Ok(value) => values.push(value),
-        Err(err) => group.append(anyhow!(err)),
+        Err(err) => group.append(format!("{:#?}", err)),
       }
     }
 
@@ -58,7 +57,7 @@ impl<T> Grouper for SplitResult<T> {
   /// Convert this to a result, Ok(values) if errors is None and Err(errors) if not
   fn as_result<E: From<ErrorGroup>>(self) -> Result<Self::Result, E> {
     match self.errors {
-      Some(err) => Err(err)?,
+      Some(err) => Err(err.into()),
       None => Ok(self.values),
     }
   }

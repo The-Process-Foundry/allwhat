@@ -3,8 +3,10 @@
 mod common;
 use common::*;
 
+use allwhat::ErrorGroup;
+
 /// Test that the internals of errors are ok
-fn cmp<T: Eq>(left: Result<T>, right: Result<T, &str>) -> bool {
+fn cmp<T: Eq>(left: Result<T, String>, right: Result<T, &str>) -> bool {
   match (left, right) {
     (Ok(_), Err(_)) | (Err(_), Ok(_)) => false,
     (Ok(l), Ok(r)) => l == r,
@@ -42,19 +44,18 @@ fn test_error_group() {
 #[allow(unused_assignments)]
 fn test_extract_errors() {
   use allwhat::extract_errors;
-  use anyhow::{Context, Result};
 
-  fn get_int(val: i64, is_ok: bool) -> Result<u64> {
+  fn get_int(val: i64, is_ok: bool) -> Result<u64, String> {
     match is_ok {
       true => Ok(val as u64),
-      false => Err(anyhow!("Forced Error for val {}", val)),
+      false => Err(format!("Forced Error for val {}", val)),
     }
   }
 
-  fn get_str(val: &str, is_ok: bool) -> Result<String> {
+  fn get_str(val: &str, is_ok: bool) -> Result<String, String> {
     match is_ok {
       true => Ok(format!("Valid: {}", val)),
-      false => Err(anyhow!("Invalid: {}", val)),
+      false => Err(format!("Invalid: {}", val)),
     }
   }
 
@@ -70,7 +71,7 @@ fn test_extract_errors() {
       int_3,
       // Just add a function call or block of code to execute
       str_1 => get_str("String 1", true),
-      str_2: Result<String> => Ok("String 2".to_string()),
+      str_2: Result<String, String> => Ok("String 2".to_string()),
       str_3 => {
         let block = get_str("String 3", true);
         block.context("No Error, but adding a context anyways")

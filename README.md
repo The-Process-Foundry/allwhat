@@ -1,6 +1,6 @@
 # allwhat
 
-Rust error aggregation tools.
+Rust error aggregation tools wrapped around a custom Error base.
 
 The goal of this is to smooth out validation style errors, where one wants to know all the errors
 that occurred rather than just the first.
@@ -19,9 +19,9 @@ will garner a minor-version increase.
 
 These are the remaining items that need to be done before I will release this as a crate
 
+- Too much anyhow leakage. "ThisError" style macro builder for easier integration and fewer requires
+  in live build.
 - Finish implementing bulk_try proc_macro for all reasonable expression types
-- Make current Subpar CSV Reader project
-- Add Filtrate validation to schemars
 - Clean up documentation (including/especially this README)
 - Add integration tests for each function
 - Remove dead code
@@ -42,4 +42,5 @@ Working with Vec iterables that filter the results into successes and failures.
 
 ## Macros
 
-Simplifying extracting errors from multiple sources into a single result.
+- **bulk_try** Simplifying extracting errors from multiple sources into a single result.
+- **derive(Allwhat)** Integrates batching, splitting, and error groups for a custom error

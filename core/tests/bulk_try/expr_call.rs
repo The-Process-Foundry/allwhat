@@ -1,15 +1,14 @@
 //! Test Expr Call
 
 use allwhat::{bulk_try, prelude::ErrorGroup};
-use anyhow::{anyhow, Error as AnyhowError, Result};
 
 /*
 // A very simple function that also determines the type of error
-fn to_ok<T>(val: T) -> Result<T, AnyhowError> {
+fn to_ok<T>(val: T) -> Result<T, String> {
   Ok(val)
 }
 
-fn to_err<T>(msg: &'static str) -> Result<T, AnyhowError> {
+fn to_err<T>(msg: &'static str) -> Result<T, String> {
   Err(anyhow!(msg))
 }
 
@@ -36,17 +35,17 @@ fn test_expr_call_result() {
 #[test]
 
 fn test_expr_call_params() {
-  fn one_param(a: i32) -> Result<i32, AnyhowError> {
+  fn one_param(a: i32) -> Result<i32, String> {
     if a < 64 {
       Ok(a)
     } else {
-      Err(anyhow!(format!("one_param received a large value: {}", a)))
+      Err(format!("one_param received a large value: {}", a))
     }
   }
 
   // Test 1:
   //   The most basic, unwrap a valid parameter and return the Ok result
-  let mut param: Result<i32, AnyhowError> = Ok(1);
+  let mut param: Result<i32, String> = Ok(1);
   let test1 = bulk_try! { one_param(param?) };
   assert_eq!(test1.unwrap().unwrap(), 1);
 
@@ -86,7 +85,7 @@ fn test_expr_call_params() {
   // Test 4:
   //   The paramater is good, but causes an error. It should return an Ok wrapping an error
   param = Ok(100);
-  let test4: Result<Result<i32, AnyhowError>, ErrorGroup> = bulk_try! { one_param(param?) };
+  let test4: Result<Result<i32, String>, ErrorGroup> = bulk_try! { one_param(param?) };
 
   match &test4 {
     Ok(Err(err)) => assert_eq!(
@@ -116,18 +115,18 @@ fn test_expr_call_params() {
     ),
   }
 
-  fn multi_param(a1: i32, b2: i32, c3: i32, d4: i32, e5: i32, f6: i32) -> Result<i32, AnyhowError> {
+  fn multi_param(a1: i32, b2: i32, c3: i32, d4: i32, e5: i32, f6: i32) -> Result<i32, String> {
     one_param(a1 + b2 + c3 + d4 + e5 + f6)
   }
 
   // Test 6
   //   Work with multiple parameters for the same function, some of them errors.
   param = Ok(1);
-  let mut param2: Result<i32, AnyhowError> = Ok(2);
+  let mut param2: Result<i32, String> = Ok(2);
   let mut param3 = 4;
-  let mut param4: Result<i32, AnyhowError> = Err(anyhow!("Param4 Error"));
-  let mut param5: Result<i32, AnyhowError> = Ok(16);
-  let mut param6: Result<i32, AnyhowError> = Err(anyhow!("Param6 Error"));
+  let mut param4: Result<i32, String> = Err(anyhow!("Param4 Error"));
+  let mut param5: Result<i32, String> = Ok(16);
+  let mut param6: Result<i32, String> = Err(anyhow!("Param6 Error"));
 
   let test6 = bulk_try! {multi_param(param?, param2?, param3, param4?, param5?, param6?)};
   match &test6 {

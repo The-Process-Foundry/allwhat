@@ -11,29 +11,33 @@ repository = "https://github.com/the_process_foundry/allwhat"
 version = "0.1.0" # remember to update html_root_url
 
 [features]
-all = ["groups", "batch", "iteration", "macros"]
+all = ["groups", "batch", "iteration", "macros", "serializable"]
 batch = ["groups"]
 default = ["groups", "batch", "iteration", "macros"]
 groups = []
 iteration = []
 macros = []
+serializable = ["serde"]
 
 [dependencies]
 # Basic Logging
 env_logger = "0.9.0"
-log = "0.4.14"
+log = "0.4.16"
 
 # anyhow = { version = "1.0.43", optional = false }
-anyhow = {path = "../../anyhow", optional = false}
+# anyhow = {path = "../../anyhow", optional = false}
 
 # For building basic macros
-paste = "1.0.5"
+paste = "1.0.7"
 
 # proc_macros that implement allwhat
 allwhat-macros = {path = "../macros"}
 
+# serialization for sending errors across the net
+serde = { version = "1.0.136", features = ["derive"], optional = true }
+
 [dev-dependencies]
-fake = "2.4.1"
+fake = "2.4.3"
 lazy_static = "1.4.0"
 
 [package.metadata.docs.rs]

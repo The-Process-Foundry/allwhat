@@ -192,7 +192,7 @@ impl Questionable for Expr {
       Expr::Verbatim(token_stream) => token_stream.unwrap_tries(),
       Expr::While(expr_while) => expr_while.unwrap_tries(),
       Expr::Yield(expr_yield) => expr_yield.unwrap_tries(),
-      Expr::__TestExhaustive(_) => panic!("Attempting to process a private expression"),
+      _ => panic!("Attempting to use the NonExhaustive expression"),
     }
   }
 }

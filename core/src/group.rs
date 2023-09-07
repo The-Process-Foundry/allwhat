@@ -64,10 +64,10 @@ pub trait Grouper {
 ///
 /// This is intended to enumerate all the errors found in a transaction rather than failing on
 /// the first
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ErrorGroup {
   label: Option<String>,
-  errors: Vec<AnyhowError>,
+  errors: Vec<String>,
 }
 
 impl std::error::Error for ErrorGroup {}
@@ -116,18 +116,18 @@ impl ErrorGroup {
   }
 
   /// Add a new error to the ErrorGroup in place
-  pub fn append<F: Into<AnyhowError>>(&mut self, error: F) {
-    self.errors.push(error.into());
+  pub fn append<F: Debug>(&mut self, error: F) {
+    self.errors.push(format!("{:#?}", error));
   }
 
   /// Add a new error to the ErrorGroup as functional pattern for chaining terms
-  pub fn appendf<F: Into<AnyhowError>>(mut self, error: F) -> ErrorGroup {
-    self.append(error.into());
+  pub fn appendf<F: Debug>(mut self, error: F) -> ErrorGroup {
+    self.append(format!("{:#?}", error));
     self
   }
 
   /// Add on a list of errors
-  pub fn extend<T, F: Into<AnyhowError>>(&mut self, _list: impl Iterator<Item = Result<T, F>>) {
+  pub fn extend<T, F: Debug>(&mut self, _list: impl Iterator<Item = Result<T, F>>) {
     unimplemented!("'' still needs to be implemented")
   }
 
@@ -159,15 +159,15 @@ impl ErrorGroup {
   ///   Err(())
   /// ));
   /// ```
-  pub fn extract<T, F>(&mut self, result: Result<T, F>) -> Result<T, AnyhowError>
+  pub fn extract<T, F>(&mut self, result: Result<T, F>) -> Result<T, String>
   where
-    F: Into<AnyhowError> + Display,
+    F: Debug + Display,
   {
     match result {
       Ok(t) => Ok(t),
       Err(err) => {
-        let new_err = anyhow!("(Extracted) - {}", err);
-        self.append(err);
+        let new_err = format!("(Extracted) - {:#?}", err);
+        self.append(format!("{:#?}", err));
         Err(new_err)
       }
     }
@@ -176,7 +176,7 @@ impl ErrorGroup {
   /// Unwrap a list of results, splitting it into unwrapped values and an optional flattened error
   ///
   /// THINK: Should there al
-  pub fn unwrap_all<T, F: Into<AnyhowError> + Display>(
+  pub fn unwrap_all<T, F: Debug + Display>(
     results: impl Iterator<Item = Result<T, F>>,
   ) -> (Vec<T>, Option<Self>) {
     let mut result = vec![];
@@ -192,6 +192,16 @@ impl ErrorGroup {
       0 => (result, None),
       _ => (result, Some(errors)),
     }
+  }
+}
+
+// and we'll implement IntoIterator
+impl IntoIterator for ErrorGroup {
+  type Item = String;
+  type IntoIter = std::vec::IntoIter<Self::Item>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.errors.into_iter()
   }
 }
 
@@ -247,7 +257,7 @@ impl ErrorGroup {
 #[macro_export]
 macro_rules! extract_errors {
   (@inner $result:ident, $var:ident) => {
-    let $var: Result<_> = $result.extract($var);
+    let $var: Result<_, String> = $result.extract($var);
   };
 
   (@inner $result:ident, $var:ident => $val:expr) => {
@@ -261,7 +271,7 @@ macro_rules! extract_errors {
   };
 
   ($result:ident = [$($var:ident $($(: $type:ty)? => $val:expr)?),+ $(,)?]) => {
-    let mut $result = ErrorGroup::new(Some("Extracted Errors".to_string()));
+    let mut $result = allwhat::ErrorGroup::new(Some("Extracted Errors".to_string()));
 
     $(
       extract_errors!(
